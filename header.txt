@@ -1,0 +1,10 @@
+// ==UserScript==
+// @name     AWS SSO Displayname
+// @version 3.2.225
+// @grant    none
+// @include      https://console.aws.amazon.*
+// @include      https://*.console.aws.amazon.*
+// ==/UserScript==
+
+// Generated AWS accounts below
+const accounts = {
