@@ -1,0 +1,43 @@
+name: Get AWS Organization accounts name and id
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1-5' # execute Mon-Fri @ 8AM
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.COR_CICD_AUTOMATION_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.COR_CICD_AUTOMATION_AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ROLE_TO_ASSUME: arn:aws:iam::1234567890123:role/prd-cicd-automation
+jobs:
+  job-name:
+    name: Get AWS Organization accounts name and id
+    runs-on: ubuntu-latest
+    steps:
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+      - name: Configure AWS Credentials for the core-cicd account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ env.ROLE_TO_ASSUME }}
+          role-duration-seconds: 600
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: "no"
+      - uses: actions/checkout@v2
+        with:
+          ref: main
+      - name: get-org-accounts
+        id: install-inspector-agents
+        run: |
+          bash increase_version.sh
+          aws organizations list-accounts --output text --query 'Accounts[?Status==`ACTIVE`][Status,JoinedTimestamp,Id,Email,Name]' |sort |cut -f2- |column -t -n -e -s$'\cI' | awk '{print"\"" $2 "\": [\"" $4 $5 $6 $7 $8 "\"],"}' > accounts.txt
+          bash account_naming_fix.sh
+          cat header.txt accounts.txt rest.txt > AWS_SSO_displaynames.js 
+      - name: Commit everything
+        run: |
+          git config --global user.name 'Tampermonkey automation'
+          git config --global user.email 'Tampermonkey-automation@users.noreply.github.com'
+          git add . 
+          git commit -am "Automated report"
+          git push
